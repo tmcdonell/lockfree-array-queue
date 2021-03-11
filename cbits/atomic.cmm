@@ -1,0 +1,34 @@
+/* Module      : Atomic
+ * Copyright   : [2021] Trevor L. McDonell
+ * License     : BSD3
+ *
+ * Maintainer  : Trevor L. McDonell <trevor.mcdonell@gmail.com>
+ * Stability   : experimental
+ * Portability : non-portable (GHC extensions)
+ *
+ * vim: filetype=c
+ */
+
+#include "Cmm.h"
+#include "MachDeps.h"
+
+#if SIZEOF_W == 4
+#define xchgW xchg32
+#elif SIZEOF_W == 8
+#define xchgW xchg64
+#endif
+
+xchgSmallArrayzh ( gcptr arr, W_ ind, gcptr new )
+/* SmallMutableArray# s a -> Int# -> a -> State# s -> (# State# s, a #) */
+{
+    gcptr h;
+    W_ p;
+
+    p = arr + SIZEOF_StgSmallMutArrPtrs + WDS(ind);
+    (h) = prim %xchgW(p, new);
+
+    SET_HDR(arr, stg_SMALL_MUT_ARR_PTRS_DIRTY_info, CCCS);
+
+    return (h);
+}
+

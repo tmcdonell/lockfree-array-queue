@@ -1,0 +1,70 @@
+cabal-version: 1.12
+
+-- This file has been generated from package.yaml by hpack version 0.33.0.
+--
+-- see: https://github.com/sol/hpack
+--
+-- hash: 67d2ebbccf5dc114a6e1dc252155deafa68ecf6a4c0c6373bcbbdae133b1b878
+
+name:           lockfree-array-queue
+version:        0.1.0.0
+synopsis:       A linerisable MPMC unbounded lockfree-queue
+description:    Please see the README on GitHub at <https://github.com/tmcdonell/lockfree-array-queue#readme>
+category:       Data, Concurrency
+homepage:       https://github.com/tmcdonell/lockfree-array-queue#readme
+bug-reports:    https://github.com/tmcdonell/lockfree-array-queue/issues
+author:         Trevor L. McDonell
+maintainer:     trevor.mcdonell@gmail.com
+copyright:      Trevor L. McDonell &lt;trevor.mcdonell@gmail.com&gt;
+license:        BSD3
+license-file:   LICENSE
+build-type:     Simple
+extra-source-files:
+    README.md
+    CHANGELOG.md
+    cbits/delay.h
+    cbits/sfc64.h
+    cbits/delay.c
+    cbits/atomic.cmm
+
+source-repository head
+  type: git
+  location: https://github.com/tmcdonell/lockfree-array-queue
+
+library
+  exposed-modules:
+      Data.Concurrent.Queue.Array.FAA
+  other-modules:
+      Paths_lockfree_array_queue
+  hs-source-dirs:
+      src
+  ghc-options: -Wall -O3
+  cc-options: -Wall -O3
+  ld-options: cbits/atomic.o
+  build-depends:
+      base >=4.7 && <5
+    , ghc-prim
+    , primitive
+  default-language: Haskell2010
+
+executable faa-test
+  main-is: Main.hs
+  other-modules:
+      Delay
+  hs-source-dirs:
+      test
+  ghc-options: -Wall -O3 -threaded -rtsopts -with-rtsopts=-A128M -with-rtsopts=-n4M
+  cc-options: -Wall -O3
+  include-dirs:
+      ./.
+  c-sources:
+      cbits/delay.c
+  build-depends:
+      base
+    , deepseq
+    , gauge
+    , ghc-prim
+    , lockfree-array-queue
+    , lockfree-queue
+    , primitive
+  default-language: Haskell2010
