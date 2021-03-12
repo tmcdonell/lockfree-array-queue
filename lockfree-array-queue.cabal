@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 5fa63134b9639b072363249565f94ddd02585aaab702fecac5cdf87ab7693bf5
+-- hash: b1bc563719a560ab29d5277756a85949e65bfe069a2d8e833a782e18a8fec5b4
 
 name:           lockfree-array-queue
 version:        0.1.0.0
@@ -51,14 +51,20 @@ executable faa-test
   main-is: Main.hs
   other-modules:
       Delay
+      LCRQ
+      Paths_lockfree_array_queue
   hs-source-dirs:
       test
   ghc-options: -Wall -O3 -threaded -rtsopts -with-rtsopts=-A128M -with-rtsopts=-n4M
-  cc-options: -Wall -O3
+  cc-options: -Wall -O3 -DLCRQ
   include-dirs:
       ./.
+      reference/ymc-queue
   c-sources:
       cbits/delay.c
+      reference/ymc-queue/lcrq.c
+      reference/ymc-queue/hzdptr.c
+      reference/ymc-queue/xxhash.c
   build-depends:
       base
     , clock

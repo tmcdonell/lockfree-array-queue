@@ -52,6 +52,9 @@ executables:
 
     c-sources:
       - cbits/delay.c
+      - reference/ymc-queue/lcrq.c
+      - reference/ymc-queue/hzdptr.c
+      - reference/ymc-queue/xxhash.c
 
     ghc-options:
       - -Wall
@@ -61,13 +64,13 @@ executables:
       - -with-rtsopts=-A128M
       - -with-rtsopts=-n4M
 
-    include-dirs: .
+    include-dirs:
+      - .
+      - reference/ymc-queue
 
     cc-options:
       - -Wall
       - -O3
-
-    other-modules:
-      - Delay
+      - -DLCRQ
 
 # vim: nospell

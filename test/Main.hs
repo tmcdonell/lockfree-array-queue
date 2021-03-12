@@ -5,6 +5,7 @@
 {-# LANGUAGE NumericUnderscores  #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications    #-}
+{-# LANGUAGE TypeFamilies        #-}
 {-# LANGUAGE UnboxedTuples       #-}
 -- |
 -- Module      : Main
@@ -33,6 +34,7 @@ import GHC.Exts
 
 import qualified Data.Concurrent.Queue.MichaelScott                 as MS
 import qualified Data.Concurrent.Queue.Array.FAA                    as FAA
+import qualified LCRQ                                               as LCRQ
 
 
 main :: IO ()
@@ -42,7 +44,7 @@ main = do
       rounds  = 100             -- for burst
       iters   = 11              -- should be odd
 
-  printf "running with %d threads\n" numCapabilities
+  printf "running with %d thread(s) and %s operations\n\n" numCapabilities (showFFloatSIBase (Just 0) 1000 (fromIntegral ops :: Double) "")
 
   faa iters nprocs ops
 
@@ -56,34 +58,54 @@ main = do
   pairwise @MS.LinkedQueue iters nprocs ops
   burst @MS.LinkedQueue iters nprocs ops rounds
 
+  printf "lcrq\n"
+  printf "----\n"
+  pairwise @LCRQ.LinkedQueue iters nprocs ops
+  burst @LCRQ.LinkedQueue iters nprocs ops rounds
 
 
 class LinkedQueue q where
-  new     :: IO (q a)
-  null    :: q a -> IO Bool
-  enqueue :: q a -> a -> IO ()
-  dequeue :: q a -> IO (Maybe a)
+  type Handle q
+  new      :: Int -> IO (q a)
+  register :: q a -> Int -> IO (Handle q)
+  enqueue  :: q a -> Handle q -> a -> IO ()
+  dequeue  :: q a -> Handle q -> IO (Maybe a)
 
 instance LinkedQueue MS.LinkedQueue where
-  {-# INLINE new     #-}
-  {-# INLINE null    #-}
-  {-# INLINE enqueue #-}
-  {-# INLINE dequeue #-}
-  new = MS.newQ
-  null = MS.nullQ
-  enqueue = MS.pushL
-  dequeue = MS.tryPopR
+  type Handle MS.LinkedQueue = ()
+  {-# INLINE new      #-}
+  {-# INLINE register #-}
+  {-# INLINE enqueue  #-}
+  {-# INLINE dequeue  #-}
+  new _        = MS.newQ
+  enqueue q _  = MS.pushL q
+  dequeue q _  = MS.tryPopR q
+  register _ _ = return ()
 
 instance LinkedQueue (FAA.LinkedQueue RealWorld) where
-  {-# INLINE new     #-}
-  {-# INLINE null    #-}
-  {-# INLINE enqueue #-}
-  {-# INLINE dequeue #-}
-  new = FAA.new
-  null = FAA.null
-  enqueue = FAA.pushL
-  dequeue = FAA.tryPopR
+  type Handle (FAA.LinkedQueue RealWorld) = ()
+  {-# INLINE new      #-}
+  {-# INLINE register #-}
+  {-# INLINE enqueue  #-}
+  {-# INLINE dequeue  #-}
+  new _        = FAA.new
+  enqueue q _  = FAA.pushL q
+  dequeue q _  = FAA.tryPopR q
+  register _ _ = return ()
 
+instance LinkedQueue LCRQ.LinkedQueue where
+  type Handle LCRQ.LinkedQueue = LCRQ.Handle
+  {-# INLINE new      #-}
+  {-# INLINE register #-}
+  {-# INLINE enqueue  #-}
+  {-# INLINE dequeue  #-}
+  new      = LCRQ.new
+  register = LCRQ.thread_register
+  enqueue  = LCRQ.pushL
+  dequeue  = LCRQ.tryPopR
+
+
+{-# INLINE pairwise #-}
 pairwise :: forall q. LinkedQueue q => Int -> Int -> Int -> IO ()
 pairwise iters nprocs nops = do
   let lIMIT = nops `quot` nprocs
@@ -92,19 +114,20 @@ pairwise iters nprocs nops = do
       bench !i
         | i > iters = return []
         | otherwise = do
-            q  <- new
+            q  <- new nprocs
             d  <- forkThreads nprocs (lambda q)
             ds <- bench (i+1)
             return (d:ds)
 
       lambda :: LinkedQueue q => q Int -> Int -> IO Integer
       lambda q tid = do
+        h <- register q tid
         let go !i !v
               | i > lIMIT = return ()
               | otherwise = do
-                  enqueue q v
+                  enqueue q h v
 
-                  mv <- dequeue q
+                  mv <- dequeue q h
                   v' <- case mv of
                           Just x  -> return x
                           Nothing -> error (printf "thread %d: failed to dequeue!" tid)
@@ -121,6 +144,7 @@ pairwise iters nprocs nops = do
   printf "\n"
 
 
+{-# INLINE burst #-}
 burst :: forall q. LinkedQueue q => Int -> Int -> Int -> Int -> IO ()
 burst iters nprocs nops rounds = do
   let lIMIT  = nops `quot` rounds `quot` nprocs
@@ -129,7 +153,7 @@ burst iters nprocs nops rounds = do
       bench !i
         | i > iters = return ([], [])
         | otherwise = do
-            q  <- new
+            q  <- new nprocs
             let go !j
                   | j > rounds = return (replicate nprocs 0, replicate nprocs 0)
                   | otherwise  = do
@@ -143,10 +167,11 @@ burst iters nprocs nops rounds = do
 
       enq :: LinkedQueue q => q Int -> Int -> IO Integer
       enq q tid = do
+        h <- register q tid
         let go !i
               | i > lIMIT = return ()
               | otherwise = do
-                  enqueue q tid
+                  enqueue q h tid
                   go (i+1)
         --
         start <- getTime Monotonic
@@ -156,10 +181,11 @@ burst iters nprocs nops rounds = do
 
       deq :: LinkedQueue q => q Int -> Int -> IO Integer
       deq q tid = do
+        h <- register q tid
         let go !i
               | i > lIMIT = return ()
               | otherwise = do
-                  mv <- dequeue q
+                  mv <- dequeue q h
                   _  <- case mv of
                           Just x  -> return x
                           Nothing -> error (printf "thread %d: failed to dequeue!" tid)
@@ -224,7 +250,6 @@ forkThreads nprocs work = do
 
   results <- mapM work' [0 .. nprocs - 1]
   putMVar ready ()
-  threadDelay 100000
   mapM takeMVar results
 
 analyse :: Int -> [[Integer]] -> IO ()
