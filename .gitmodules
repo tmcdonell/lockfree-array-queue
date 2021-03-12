@@ -1,0 +1,6 @@
+[submodule "reference/ymc-queue"]
+	path = reference/ymc-queue
+	url = https://github.com/chaoran/fast-wait-free-queue.git
+[submodule "reference/faa-queue"]
+	path = reference/faa-queue
+	url = https://github.com/pramalhe/ConcurrencyFreaks.git
