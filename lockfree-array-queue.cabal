@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 67d2ebbccf5dc114a6e1dc252155deafa68ecf6a4c0c6373bcbbdae133b1b878
+-- hash: 5fa63134b9639b072363249565f94ddd02585aaab702fecac5cdf87ab7693bf5
 
 name:           lockfree-array-queue
 version:        0.1.0.0
@@ -61,8 +61,7 @@ executable faa-test
       cbits/delay.c
   build-depends:
       base
-    , deepseq
-    , gauge
+    , clock
     , ghc-prim
     , lockfree-array-queue
     , lockfree-queue

@@ -46,8 +46,7 @@ executables:
     source-dirs: test
     dependencies:
       - base
-      - gauge
-      - deepseq
+      - clock
       - lockfree-queue
       - lockfree-array-queue
 

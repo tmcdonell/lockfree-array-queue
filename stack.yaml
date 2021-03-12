@@ -13,6 +13,7 @@ packages:
 extra-deps:
 - abstract-deque-0.3
 - atomic-primops-0.8.4
+- clock-0.8.2
 - gauge-0.2.5
 - lockfree-queue-0.2.3.1
 - primitive-0.7.1.0
