@@ -27,7 +27,7 @@ module Data.Concurrent.Queue.Array.FAA (
   new,
   null,
   pushL,
-  tryPopR,
+  tryPopR, tryPopR#,
 
 ) where
 
@@ -101,18 +101,20 @@ newEmptyNode# s0# =
 
 -- | Create a new (empty) queue
 --
+{-# INLINEABLE new #-}
 new :: PrimMonad m => m (LinkedQueue (PrimState m) e)
 new = primitive $ \s0# ->
-  case newEmptyNode# s0#                            of { (# s1#, sentinalNode #) ->
+  case newEmptyNode# s0#                            of { (# s1#, sentinelNode #) ->
   case newSmallArray# 48# (unsafeCoerce# Null#) s1# of { (# s2#, ptrs# #) ->
-  case writeSmallArray# ptrs# 16# sentinalNode s2#  of { s3# -> -- headPtr
-  case writeSmallArray# ptrs# 32# sentinalNode s3#  of { s4# -> -- tailPtr
+  case writeSmallArray# ptrs# 16# sentinelNode s2#  of { s3# -> -- headPtr
+  case writeSmallArray# ptrs# 32# sentinelNode s3#  of { s4# -> -- tailPtr
     (# s4#, LinkedQueue ptrs# #) }}}}
 
 
 -- | Is the queue currently empty? Only safe to call when the queue is idle
 -- (no active producers or consumers).
 --
+{-# INLINEABLE null #-}
 null :: PrimMonad m => LinkedQueue (PrimState m) e -> m Bool
 null (LinkedQueue ptrs#) = primitive $ \s0# ->
   case readSmallArray# ptrs# 16# s0# of { (# s1#, headPtr #) ->
@@ -129,6 +131,7 @@ null (LinkedQueue ptrs#) = primitive $ \s0# ->
 -- always succeeds. Uncontended enqueues require one FAA instruction and
 -- one CAS instruction. Lock-free progress guarantee.
 --
+{-# INLINEABLE pushL #-}
 pushL :: PrimMonad m => LinkedQueue (PrimState m) e -> e -> m ()
 pushL (LinkedQueue ptrs#) x =
   let loop s0# =
@@ -173,8 +176,18 @@ pushL (LinkedQueue ptrs#) x =
 -- dequeue requires one FAA instruction and one CAS instruction. Lock-free
 -- progress guarantee.
 --
+{-# INLINEABLE tryPopR #-}
 tryPopR :: PrimMonad m => LinkedQueue (PrimState m) e -> m (Maybe e)
-tryPopR (LinkedQueue ptrs#) =
+tryPopR q = primitive $ \s0# ->
+  case tryPopR# q s0# of { (# s1#, valid#, item #) ->
+  case isTrue# valid# of
+    False -> (# s1#, Nothing #)
+    True  -> (# s1#, Just item #)
+  }
+
+{-# INLINEABLE tryPopR# #-}
+tryPopR# :: LinkedQueue s e -> State# s -> (# State# s, Int#, e #)
+tryPopR# (LinkedQueue ptrs#) =
   let loop s0# =
         case readSmallArray# ptrs# 16# s0#        of { (# s1#, lhead #) ->
         case lhead                                of { Node indices# items# next# ->
@@ -182,13 +195,13 @@ tryPopR (LinkedQueue ptrs#) =
         case atomicReadIntArray# indices# 16# s2# of { (# s3#, enqidx# #) ->
         case readSmallArray# next# 16# s3#        of { (# s4#, lnext #) ->
         case isTrue# (deqidx# >=# enqidx#) && isNull# lnext of
-          True  -> (# s4#, Nothing #)
+          True  -> (# s4#, 0#, Null# #)
           False -> case fetchAddIntArray# indices# 32# 1# s4# of { (# s5#, idx# #) ->
                    case isTrue# (idx# ># 127#)                of -- BUFFER_SIZE - 1
                      -- This node has been drained, check if there is another one
                      True  -> case readSmallArray# next# 16# s5# of { (# s6#, lnext' #) ->
                               case isNull# lnext'                of
-                                True  -> (# s6#, Nothing #)
+                                True  -> (# s6#, 0#, Null# #)
                                 False -> case casSmallArray# ptrs# 16# lhead lnext' s6# of { (# s7#, _, _ #) ->
                                            loop s7#
                                          }
@@ -198,12 +211,12 @@ tryPopR (LinkedQueue ptrs#) =
                      False -> case xchgSmallArray# items# idx# (unsafeCoerce# Taken#) s5# of { (# s6#, item #) ->
                               case isNull# item                                           of
                                 True  -> loop s6#
-                                False -> (# s6#, Just item #)
+                                False -> (# s6#, 1#, item #)
                               }
                    }
       }}}}}
   in
-  primitive loop
+  loop
 
 foreign import prim "xchgSmallArrayzh"
   xchgSmallArray# :: SmallMutableArray# s a -> Int# -> Any a -> State# s -> (# State# s, a #)

@@ -4,29 +4,10 @@
 # For advanced use and comprehensive documentation of the format, please see:
 # https://docs.haskellstack.org/en/stable/yaml_configuration/
 
-resolver: ghc-9.0.1
-compiler: ghc-9.0.1
+resolver: lts-19.7
 
 packages:
 - .
-
-extra-deps:
-- abstract-deque-0.3
-- atomic-primops-0.8.4
-- clock-0.8.2
-- gauge-0.2.5
-- lockfree-queue-0.2.3.1
-- primitive-0.7.1.0
-- random-1.2.0
-- splitmix-0.1.0.3
-- structs-0.1.5
-- th-abstraction-0.4.2.0
-- vector-0.12.2.0
-
-- github: LaurentRDC/foundation
-  commit: d02ab182c977272ae4089ce20d15d82fc4fcd5e8
-  subdirs:
-    - basement
 
 # Override default flag values for local packages and extra-deps
 # flags: {}

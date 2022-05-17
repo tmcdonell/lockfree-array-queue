@@ -1,10 +1,10 @@
-cabal-version: 1.12
+cabal-version: 3.0
 
 -- This file has been generated from package.yaml by hpack version 0.33.0.
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: b1bc563719a560ab29d5277756a85949e65bfe069a2d8e833a782e18a8fec5b4
+-- hash: 70e1f58f4e0934bfc6156f95a794bffeafd0f5a4ab5e2f232e534f77460e4faf
 
 name:           lockfree-array-queue
 version:        0.1.0.0
@@ -16,7 +16,7 @@ bug-reports:    https://github.com/tmcdonell/lockfree-array-queue/issues
 author:         Trevor L. McDonell
 maintainer:     trevor.mcdonell@gmail.com
 copyright:      Trevor L. McDonell &lt;trevor.mcdonell@gmail.com&gt;
-license:        BSD3
+license:        BSD-3-Clause
 license-file:   LICENSE
 build-type:     Simple
 extra-source-files:
@@ -40,7 +40,8 @@ library
       src
   ghc-options: -Wall -O3
   cc-options: -Wall -O3
-  ld-options: cbits/atomic.o
+  cmm-options: -Wall -O3
+  cmm-sources: cbits/atomic.cmm
   build-depends:
       base >=4.7 && <5
     , ghc-prim

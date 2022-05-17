@@ -1,7 +1,7 @@
 name:                lockfree-array-queue
 version:             0.1.0.0
 github:              "tmcdonell/lockfree-array-queue"
-license:             BSD3
+license:             BSD-3-Clause
 author:              "Trevor L. McDonell"
 maintainer:          "trevor.mcdonell@gmail.com"
 copyright:           "Trevor L. McDonell &lt;trevor.mcdonell@gmail.com&gt;"
@@ -29,12 +29,17 @@ dependencies:
 
 library:
   source-dirs: src
+
+  cmm-sources:
+    - cbits/atomic.cmm
+
   ghc-options:
     - -Wall
     - -O3
 
-  ld-options:
-    - cbits/atomic.o
+  cmm-options:
+    - -O3
+    - -Wall
 
   cc-options:
     - -Wall
