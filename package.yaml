@@ -47,6 +47,7 @@ library:
 
 executables:
   faa-test:
+    buildable: false
     main: Main.hs
     source-dirs: test
     dependencies:
