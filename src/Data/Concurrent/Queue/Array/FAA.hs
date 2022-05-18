@@ -24,9 +24,9 @@
 module Data.Concurrent.Queue.Array.FAA (
 
   LinkedQueue,
-  new,
-  null,
-  pushL,
+  new, new#,
+  null, null#,
+  pushL, pushL#,
   tryPopR, tryPopR#,
 
 ) where
@@ -103,12 +103,17 @@ newEmptyNode# s0# =
 --
 {-# INLINEABLE new #-}
 new :: PrimMonad m => m (LinkedQueue (PrimState m) e)
-new = primitive $ \s0# ->
+new = primitive new#
+
+{-# INLINEABLE new# #-}
+new# :: State# s -> (# State# s, LinkedQueue s e #)
+new# s0# =
   case newEmptyNode# s0#                            of { (# s1#, sentinelNode #) ->
   case newSmallArray# 48# (unsafeCoerce# Null#) s1# of { (# s2#, ptrs# #) ->
   case writeSmallArray# ptrs# 16# sentinelNode s2#  of { s3# -> -- headPtr
   case writeSmallArray# ptrs# 32# sentinelNode s3#  of { s4# -> -- tailPtr
-    (# s4#, LinkedQueue ptrs# #) }}}}
+    (# s4#, LinkedQueue ptrs# #)
+  }}}}
 
 
 -- | Is the queue currently empty? Only safe to call when the queue is idle
@@ -116,15 +121,23 @@ new = primitive $ \s0# ->
 --
 {-# INLINEABLE null #-}
 null :: PrimMonad m => LinkedQueue (PrimState m) e -> m Bool
-null (LinkedQueue ptrs#) = primitive $ \s0# ->
+null q = primitive $ \s0# ->
+  case null# q s0# of { (# s1#, result# #) ->
+    (# s1#, isTrue# result# #)
+  }
+
+null# :: LinkedQueue s e -> State# s -> (# State# s, Int# #)
+null# (LinkedQueue ptrs#) s0# =
   case readSmallArray# ptrs# 16# s0# of { (# s1#, headPtr #) ->
   case readSmallArray# ptrs# 32# s1# of { (# s2#, tailPtr #) ->
   case isTrue# (reallyUnsafePtrEquality# headPtr tailPtr) of
-    False -> (# s2#, False #)
+    False -> (# s2#, 0# #)
     True  -> case headPtr                              of { Node indices# _ _  ->
              case atomicReadIntArray# indices# 16# s2# of { (# s3#, enqidx# #) ->
              case atomicReadIntArray# indices# 32# s3# of { (# s4#, deqidx# #) ->
-               (# s4#, isTrue# (enqidx# ==# deqidx#) #) }}}}}
+               (# s4#, enqidx# ==# deqidx# #)
+             }}}
+  }}
 
 
 -- | Push an element onto the queue. The queue grows as needed so this
@@ -133,7 +146,11 @@ null (LinkedQueue ptrs#) = primitive $ \s0# ->
 --
 {-# INLINEABLE pushL #-}
 pushL :: PrimMonad m => LinkedQueue (PrimState m) e -> e -> m ()
-pushL (LinkedQueue ptrs#) x =
+pushL q x = primitive_ (pushL# q x)
+
+{-# INLINEABLE pushL# #-}
+pushL# :: LinkedQueue s e -> e -> State# s -> State# s
+pushL# (LinkedQueue ptrs#) x =
   let loop s0# =
         case readSmallArray# ptrs# 32# s0#         of { (# s1#, ltail #) ->
         case ltail                                 of { Node indices# items# next# ->
@@ -155,7 +172,7 @@ pushL (LinkedQueue ptrs#) x =
                                         case isTrue# fail#                                           of
                                           True  -> loop s6#
                                           False -> case casSmallArray# ptrs# 32# ltail node s6# of { (# s7#, _, _ #) ->
-                                                     (# s7#, () #)
+                                                     s7#
                                                    }
                                         }}
                              }
@@ -165,11 +182,11 @@ pushL (LinkedQueue ptrs#) x =
           False -> case casSmallArray# items# enqidx# (unsafeCoerce# Null#) x s2# of { (# s3#, fail#, _ #) ->
                    case isTrue# fail#                                             of
                      True  -> loop s3#
-                     False -> (# s3#, () #)
+                     False -> s3#
                    }
         }}}
   in
-  primitive loop
+  loop
 
 
 -- | Pop an element from the queue, if one is available. Uncontended
