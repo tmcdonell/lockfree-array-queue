@@ -45,8 +45,6 @@ library
         -O3
         -optc=-O3
         -optc-Wall
-        -optcmm=-O3
-        -optcmm=-Wall
 
   cmm-options:
         -Wall
