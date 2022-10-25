@@ -206,11 +206,11 @@ tryPopR q = primitive $ \s0# ->
 tryPopR# :: LinkedQueue s e -> State# s -> (# State# s, Int#, e #)
 tryPopR# (LinkedQueue ptrs#) =
   let loop s0# =
-        case readSmallArray# ptrs# 16# s0#        of { (# s1#, lhead #) ->
-        case lhead                                of { Node indices# items# next# ->
-        case atomicReadIntArray# indices# 32# s1# of { (# s2#, deqidx# #) ->
-        case atomicReadIntArray# indices# 16# s2# of { (# s3#, enqidx# #) ->
-        case readSmallArray# next# 16# s3#        of { (# s4#, lnext #) ->
+        case readSmallArray# ptrs# 16# s0#                  of { (# s1#, lhead #) ->
+        case lhead                                          of { Node indices# items# next# ->
+        case atomicReadIntArray# indices# 32# s1#           of { (# s2#, deqidx# #) ->
+        case atomicReadIntArray# indices# 16# s2#           of { (# s3#, enqidx# #) ->
+        case readSmallArray# next# 16# s3#                  of { (# s4#, lnext #) ->
         case isTrue# (deqidx# >=# enqidx#) && isNull# lnext of
           True  -> (# s4#, 0#, Null# #)
           False -> case fetchAddIntArray# indices# 32# 1# s4# of { (# s5#, idx# #) ->
