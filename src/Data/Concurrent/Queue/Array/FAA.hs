@@ -126,6 +126,7 @@ null q = primitive $ \s0# ->
     (# s1#, isTrue# result# #)
   }
 
+{-# INLINEABLE null# #-}
 null# :: LinkedQueue s e -> State# s -> (# State# s, Int# #)
 null# (LinkedQueue ptrs#) s0# =
   case readSmallArray# ptrs# 16# s0# of { (# s1#, headPtr #) ->
